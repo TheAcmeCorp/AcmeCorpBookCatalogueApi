@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AcmeCorpBookCatalogueApi.Context;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,6 +16,8 @@ namespace AcmeCorpBookCatalogueApi
 {
     public class Startup
     {
+        readonly string MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -24,6 +28,24 @@ namespace AcmeCorpBookCatalogueApi
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            string connectionString = Environment.GetEnvironmentVariable("ConnectionString") ?? Configuration.GetConnectionString("DefaultConnection");
+
+            services.AddCors(options =>
+            {
+                options.AddPolicy(name: MyAllowSpecificOrigins,
+                                  builder =>
+                                  {
+                                      builder.AllowAnyOrigin();
+                                      builder.AllowAnyMethod();
+                                      builder.AllowAnyHeader();
+                                  });
+            });
+
+            services.AddDbContext<BookCatalogueContext>(options =>
+            {
+                options.UseSqlServer(connectionString);
+            });
+
             services.AddControllers();
         }
 
@@ -35,13 +57,18 @@ namespace AcmeCorpBookCatalogueApi
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseRouting();
-
-            app.UseAuthorization();
-
-            app.UseEndpoints(endpoints =>
+            app.Map("/BookCatalogue", options =>
             {
-                endpoints.MapControllers();
+                options.UseCors(MyAllowSpecificOrigins);
+
+                options.UseRouting();
+
+                options.UseAuthorization();
+
+                options.UseEndpoints(endpoints =>
+                {
+                    endpoints.MapControllers();
+                });
             });
         }
     }
